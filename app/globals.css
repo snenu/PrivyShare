@@ -19,17 +19,27 @@
   --privy-focus: #404040;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   @apply bg-privy-black text-privy-white antialiased;
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-privy-white text-privy-black font-medium px-4 py-2.5 transition-colors hover:bg-privy-gray-200 focus:outline-none focus:ring-2 focus:ring-privy-gray-400 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-xl bg-privy-white text-privy-black font-semibold px-5 py-3 transition-all hover:bg-privy-gray-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-privy-gray-400 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-privy-gray-600 bg-transparent text-privy-white font-medium px-4 py-2.5 transition-colors hover:bg-privy-gray-800 hover:border-privy-gray-500 focus:outline-none focus:ring-2 focus:ring-privy-gray-500 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-xl border-2 border-privy-gray-600 bg-transparent text-privy-white font-medium px-5 py-3 transition-all hover:bg-privy-gray-800 hover:border-privy-gray-500 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-privy-gray-500 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100;
   }
   .card {
     @apply rounded-xl border border-privy-gray-800 bg-privy-gray-900/80 p-6;

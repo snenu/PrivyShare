@@ -1,96 +1,35 @@
-# 🔍 PrivyShare (ShadowVault) — Comprehensive Project Audit Report
+# 🔍 PrivyShare (ShadowVault) — Updated Audit Report v2
 
 > **Date:** March 12, 2026  
-> **Scope:** Full codebase review — frontend, smart contract, encryption, IPFS, wallet integration  
-> **Files Reviewed:** 40+ files across `app/`, `components/`, `lib/`, `contracts/`, config files
+> **Scope:** Full re-audit after bug-fix pass — frontend, smart contract, encryption, IPFS, wallet  
+> **Files Reviewed:** 45+ files across `app/`, `components/`, `lib/`, `contracts/`, config
 
 ---
 
-## 📊 Overall Assessment
+## ✅ What Was Fixed (Good Job!)
 
-| Area | Status | Severity |
-|------|--------|----------|
-| Smart Contract | ⚠️ Functional but incomplete | HIGH |
-| Security | 🔴 Critical issues | CRITICAL |
-| Frontend | ⚠️ Works but fragile | MEDIUM |
-| IPFS Integration | ⚠️ Basic, no error recovery | MEDIUM |
-| Encryption | ✅ Solid implementation | LOW |
-| Wallet Integration | ⚠️ Works but edge cases unhandled | MEDIUM |
-| Production Readiness | 🔴 Not ready | HIGH |
-
----
-
-## 🔴 Section 1: Critical Bugs
-
-### Bug 1: Race Condition in File Registration (CRITICAL)
-
-**File:** [upload/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/upload/page.tsx#L31-L37)
-
-```typescript
-const nextId = (await getFileCounter()) + 1;
-// ... time passes ...
-const result = await executeTransaction({
-  inputs: [`${fieldValue}field`, `${price.trim()}u64`, `${nextId}u64`],
-});
-```
-
-**Problem:** Two users uploading simultaneously will both read the same `file_counter`, compute the same `nextId`, and one transaction will **fail with `assert_eq`** in the smart contract. There is no retry logic.
-
-**Impact:** File registration silently fails for one user. No error feedback — money wasted on gas.
+| Original Bug | Status | How It Was Fixed |
+|---|---|---|
+| Race condition in file registration | ✅ Fixed | Retry loop (3 attempts) with fresh [getFileCounter()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/programState.ts#12-29) per attempt |
+| Download with zeroed IV/salt | ✅ Fixed | Now requires IV & salt from user; shows error if missing |
+| Sequential N+1 [listFiles()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/programState.ts#52-65) | ✅ Fixed | Uses `Promise.all()` for parallel fetching |
+| Weak 32-bit [cidToField()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/encode.ts#1-16) hash | ✅ Fixed | Replaced with SHA-256 (248 bits) |
+| No file size limit | ✅ Fixed | 50MB max enforced client-side |
+| IPFS API keys exposed client-side | ✅ Fixed | Server-side `/api/upload` route; `PINATA_JWT` is server-only |
+| No Error Boundary | ✅ Fixed | [ErrorBoundary](file:///c:/Users/BMSIT/ShadowVault/components/ErrorBoundary.tsx#15-46) wraps [Providers](file:///c:/Users/BMSIT/ShadowVault/components/Providers.tsx#21-35) |
+| No skeleton loaders | ✅ Fixed | [Skeleton](file:///c:/Users/BMSIT/ShadowVault/components/Skeleton.tsx#1-9) and [FileCardSkeleton](file:///c:/Users/BMSIT/ShadowVault/components/Skeleton.tsx#10-24) components added |
+| No Aleo address validation | ✅ Fixed | [isValidAleoAddress()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/validate.ts#3-6) with regex validation |
+| No confirmation dialogs | ✅ Fixed | `confirm()` before grant/revoke |
+| Inconsistent layout (Footer inside main) | ✅ Fixed | Shared [(app)/layout.tsx](file:///c:/Users/BMSIT/ShadowVault/app/api/upload/route.ts#5-49) with Header + Footer |
+| No "Copy CID" button | ✅ Fixed | Owner can copy CID on file detail page |
+| No env validation | ✅ Fixed | [lib/env.ts](file:///c:/Users/BMSIT/ShadowVault/lib/env.ts) with [validateEnv()](file:///c:/Users/BMSIT/ShadowVault/lib/env.ts#1-20) |
+| Unused `ipfs-http-client` dependency | ✅ Fixed | Removed from [package.json](file:///c:/Users/BMSIT/ShadowVault/package.json) |
 
 ---
 
-### Bug 2: Download Falls Back to Empty IV/Salt (CRITICAL)
+## 🔴 Section 1: Remaining Critical Bugs
 
-**File:** [files/[id]/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/files/%5Bid%5D/page.tsx#L73-L74)
-
-```typescript
-const iv = meta?.ivBase64 ? decodeBase64ToUint8(meta.ivBase64) : new Uint8Array(12);
-const salt = meta?.saltBase64 ? decodeBase64ToUint8(meta.saltBase64) : new Uint8Array(16);
-```
-
-**Problem:** If local metadata is missing (cleared localStorage, different browser), it uses **zeroed-out IV and salt** instead of failing with a clear error. Decryption will silently produce garbage data — user downloads a corrupted file with no warning.
-
-**Fix:** Should throw an error when IV/salt are missing rather than silently using zeros.
-
----
-
-### Bug 3: [listFiles()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/programState.ts#52-64) Sequential N+1 Requests (Performance)
-
-**File:** [programState.ts](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/programState.ts#L55-L63)
-
-```typescript
-for (let id = 1; id <= counter; id++) {
-  const info = await getFileInfo(id);  // sequential!
-}
-```
-
-**Problem:** Makes **N+1 HTTP requests sequentially**. For 100 files = 100+ seconds of loading. Marketplace page will effectively freeze.
-
-**Fix:** Use `Promise.all()` with batching to parallelize requests.
-
----
-
-### Bug 4: [cidToField()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/encode.ts#1-18) Hash Collision Risk
-
-**File:** [encode.ts](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/encode.ts#L6-L17)
-
-```typescript
-export function cidToField(cid: string): string {
-  let h = 0;
-  // ... simple hash ...
-  h = (h << 5) - h + c;
-  h |= 0; // 32-bit truncation
-}
-```
-
-**Problem:** Uses a **32-bit hash** (DJB2 variant) truncated with `|= 0`. This means only ~4 billion unique values. With enough files, **hash collisions are likely**, and two different CIDs could map to the same on-chain field value. This breaks the entire deduplication/identity model.
-
-**Fix:** Use Web Crypto SHA-256 and encode the first 248 bits as a field element.
-
----
-
-### Bug 5: Private Key Hardcoded in Deployment Script
+### Bug 1: ⚠️ Hardcoded Private Key Still in Repository
 
 **File:** [deploy-wsl.sh](file:///c:/Users/BMSIT/ShadowVault/scripts/deploy-wsl.sh#L9)
 
@@ -98,270 +37,295 @@ export function cidToField(cid: string): string {
 PRIVATE_KEY="APrivateKey1zkpBNfBdXXqjKoGq66PhJANkwbmtX5Pm19BqnwLnVMiFuJX"
 ```
 
-**Problem:** Private key is committed to the repository in plain text. **Anyone who sees the repo can drain the wallet.**
+> [!CAUTION]
+> This private key is **still hardcoded in plain text**. Anyone who sees this repo can drain the wallet. Even if you remove it now, it's in your git history forever.
 
-**Fix:** Remove from script, use environment variable only. Add [scripts/deploy-wsl.sh](file:///c:/Users/BMSIT/ShadowVault/scripts/deploy-wsl.sh) to [.gitignore](file:///c:/Users/BMSIT/ShadowVault/.gitignore) or remove the key entirely.
+**Fix needed:**
+1. Remove the key from the script
+2. Use `$PRIVATE_KEY` environment variable only
+3. Run `git filter-branch` or `git-filter-repo` to purge from history
+4. **Rotate the key** — generate a new one and transfer any funds
 
 ---
 
-## 🔒 Section 2: Security Vulnerabilities
+### Bug 2: ⚠️ Old Empty Route Directories Create Routing Conflicts
 
-### Vuln 1: IPFS API Keys Exposed in Client-Side Code
+The old route directories still exist alongside the new [(app)/](file:///c:/Users/BMSIT/ShadowVault/app/api/upload/route.ts#5-49) route group:
 
-**File:** [ipfs/client.ts](file:///c:/Users/BMSIT/ShadowVault/lib/ipfs/client.ts#L1-L4)
+| Old (empty) Directory | Conflict With |
+|---|---|
+| `app/dashboard/` (empty) | `app/(app)/dashboard/page.tsx` |
+| `app/marketplace/` (empty) | `app/(app)/marketplace/page.tsx` |
+| `app/files/[id]/` (empty) | `app/(app)/files/[id]/page.tsx` |
+| `app/my-files/` (empty) | `app/(app)/my-files/page.tsx` |
+| `app/purchased/` (empty) | `app/(app)/purchased/page.tsx` |
+| `app/settings/` (empty) | `app/(app)/settings/page.tsx` |
+| `app/upload/` (missing) | `app/(app)/upload/page.tsx` |
+
+> [!WARNING]
+> While empty directories alone won't create active routes, Next.js can behave unpredictably with conflicting route structures. **Delete all old empty directories** to avoid confusion and potential build issues.
+
+---
+
+### Bug 3: ⚠️ `.env.example` Is Gitignored
+
+**File:** [.gitignore](file:///c:/Users/BMSIT/ShadowVault/.gitignore#L18)
+
+```gitignore
+.env.example
+```
+
+`.env.example` is the **template** file that tells new developers which env vars are needed. It should **NOT** be gitignored — it contains no secrets, only placeholder values. If you push this, new contributors can't set up the project.
+
+**Fix:** Remove `.env.example` from `.gitignore`.
+
+---
+
+### Bug 4: ⚠️ `validateEnv()` Is Never Actually Called
+
+**File:** [lib/env.ts](file:///c:/Users/BMSIT/ShadowVault/lib/env.ts)
+
+The function exists but is never imported or called anywhere in the app. Missing env vars will just silently use empty strings.
+
+**Fix:** Call `validateEnv()` in `(app)/layout.tsx` or the API route to surface errors early.
+
+---
+
+### Bug 5: ⚠️ `cidToField` Is Now Async But Upload Uses `await`
+
+**File:** [upload/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/%28app%29/upload/page.tsx#L38)
 
 ```typescript
-const IPFS_API_KEY = process.env.NEXT_PUBLIC_IPFS_API_KEY ?? "";
-const IPFS_API_SECRET = process.env.NEXT_PUBLIC_IPFS_API_SECRET ?? "";
+const fieldValue = await cidToField(cid); // ✅ correct, uses await
 ```
 
-**Problem:** `NEXT_PUBLIC_*` env vars are **bundled into the client-side JavaScript**. Anyone can open DevTools and extract your Pinata API key and secret. They can then:
-- Upload unlimited files to your Pinata account (you pay)
-- Delete your pinned files
-- Exceed your plan limits
-
-**Fix:** Create a Next.js API route (`/api/upload`) that proxies uploads server-side, keeping keys on the server only.
+This is fine currently, but note that `cidToField()` uses `crypto.subtle.digest()` which is **only available in secure contexts** (HTTPS or localhost). If deployed behind a non-HTTPS reverse proxy, it will fail silently.
 
 ---
 
-### Vuln 2: No On-Chain Payment Enforcement
+## 📜 Section 2: Smart Contract Analysis — Will It Work After Deployment?
 
-**Smart Contract:** [main.leo](file:///c:/Users/BMSIT/ShadowVault/contracts/privyshare_files_7879/src/main.leo)
+### Current Contract State
 
-The contract has `grant_access` but **no `purchase_file` transition** that enforces payment. The owner manually grants access after "off-chain payment" — there's no trustless payment mechanism.
+The smart contract at [main.leo](file:///c:/Users/BMSIT/ShadowVault/contracts/privyshare_files_7879/src/main.leo) is **unchanged** from the first audit. Here's the detailed analysis:
 
-**Problem:** The entire payment flow relies on trust:
-1. Buyer pays seller (how? Via which mechanism?)
-2. Seller manually grants access
-3. Seller could take payment and never grant access
-4. There's no refund mechanism
+### ✅ What Works
 
-**Impact:** This defeats the purpose of a "decentralized marketplace."
+| Function | Expected Behavior | Will it Work? |
+|---|---|---|
+| `register_file` | Register new file with auto-incrementing ID | ✅ Yes — counter logic is correct |
+| `set_price` | Owner updates file price | ✅ Yes — proper ownership proof via record consumption |
+| `grant_access` | Owner creates access record for buyer | ✅ Yes — ownership verified via mapping |
+| `revoke_access` | Owner marks buyer as revoked in mapping | ✅ Yes — stores revocation flag |
+| `constructor` | Required for deployment | ✅ Yes — `@noupgrade async constructor()` present |
+
+### ⚠️ What's Missing / Will Cause Problems
+
+| Issue | Severity | Detail |
+|---|---|---|
+| **No `purchase_file` transition** | 🔴 CRITICAL | There is no way to enforce payment on-chain. The entire marketplace relies on buyer trust. |
+| **No `delete_file` transition** | ⚠️ HIGH | Once listed, a file can never be removed from the marketplace. |
+| **Revocation doesn't burn access records** | ⚠️ HIGH | Even after `revoke_access`, the buyer's `access_record` still exists in their wallet. The `Purchased` page will still show it. The `revoked_access` mapping is checked nowhere in the frontend. |
+| **No `check_access` helper** | ⚠️ MEDIUM | Frontend can't verify if a specific user has un-revoked access. Must manually check both `access_record` existence AND `revoked_access` mapping. |
+| **`register_file` parameters are all `public`** | ⚠️ MEDIUM | `ipfs_cid`, `price`, and `file_id` are visible on-chain. For a "privacy" platform, the price and CID mapping should ideally be private. |
+| **No file metadata on-chain** | ℹ️ LOW | Name and description exist only in `localStorage`. |
+
+### 🔴 Critical: The Payment Gap
+
+The project doc says this:
+
+> *"Buyers pay for files using private transactions. Nobody can see how much was paid, who paid, which file was purchased."*
+
+But the contract has **no payment mechanism**. The current flow is:
+
+```
+Buyer → manually sends credits somehow → Seller manually calls grant_access
+```
+
+This means:
+1. **Seller can take payment and never grant access** (rug pull)
+2. **Buyer can claim they paid when they didn't**
+3. There's no escrow, no refund, no dispute resolution
+
+**To fix this properly, you need a `purchase_file` transition that:**
+```
+1. Accepts payment (credits.leo transfer)
+2. Verifies the amount matches file.price
+3. Creates an access_record for the buyer
+4. Transfers credits to the owner
+```
+
+> [!IMPORTANT]
+> Without on-chain payment, this is NOT a trustless marketplace — it's just a file listing board with manual trust-based transfers. This is the single biggest gap for production readiness.
 
 ---
 
-### Vuln 3: Metadata Stored Only in `localStorage`
+### Frontend-Contract Sync Issues
 
-**File:** [upload/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/upload/page.tsx#L51-L54)
+| Frontend Feature | Contract Support | Status |
+|---|---|---|
+| Upload + Register | `register_file` | ✅ Synced |
+| Marketplace listing | `files` mapping query | ✅ Synced |
+| Grant access | `grant_access` | ✅ Synced |
+| Revoke access | `revoke_access` | ⚠️ Frontend doesn't check `revoked_access` mapping |
+| Set price (edit) | `set_price` | ⚠️ Not exposed in UI |
+| Purchase file | ❌ No contract function | 🔴 Not implemented |
+| Delete file | ❌ No contract function | 🔴 Not implemented |
+| Verify access | ❌ No contract function | ⚠️ Not implemented |
+
+---
+
+## 🔒 Section 3: Security Review
+
+### Still Vulnerable
+
+| Issue | Severity | Detail |
+|---|---|---|
+| **Private key in git history** | 🔴 CRITICAL | Even if you remove it now, it's in commit history |
+| **No rate limiting on `/api/upload`** | ⚠️ HIGH | Anyone can spam your Pinata account through the API |
+| **No authentication on `/api/upload`** | ⚠️ HIGH | The upload endpoint has no wallet signature verification — anyone can POST |
+| **`localStorage` metadata** | ⚠️ HIGH | CID, IV, salt, filename still localStorage only. Clear browser = files unrecoverable |
+| **No CORS configuration** | ⚠️ MEDIUM | API route has no origin restriction |
+| **`NEXT_PUBLIC_PINATA_JWT_TOKEN` fallback** | ⚠️ MEDIUM | The API route tries `process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN` as fallback — this would expose JWT client-side |
+
+### Fixed ✅
+
+| Issue | Resolution |
+|---|---|
+| IPFS keys client-side | Server-side API route (`/api/upload`) |
+| No address validation | `isValidAleoAddress()` with regex |
+| No file size limits | 50MB max enforced |
+| No error boundary | `ErrorBoundary` component wrapping providers |
+
+---
+
+## 🏗️ Section 4: Architecture Issues
+
+### Still Remaining
+
+| Issue | Description |
+|---|---|
+| **No mobile navigation** | Header links break on small screens — no hamburger/drawer menu |
+| **No toast notifications** | Success/error still inline text only |
+| **`set_price` not accessible in UI** | Contract supports it but no page/button for it |
+| **Settings page is bare** | Only shows address and disconnect — no actual settings |
+| **No password strength indicator** | Encryption password field has no feedback |
+| **Price field accepts non-numeric input** | `<input type="text">` for price — should validate numeric input |
+| **No "view as buyer" experience** | File detail page is confusing for non-owners — unclear how to buy |
+
+### Fixed ✅
+
+| Issue | Resolution |
+|---|---|
+| Shared layout | `(app)/layout.tsx` with consistent Header + Footer |
+| Error boundary | Wraps all providers |
+| Skeleton loaders | Used on marketplace, my-files, purchased, file detail pages |
+
+---
+
+## 📋 Section 5: Complete Production Readiness Checklist
+
+### 🔴 Must-Fix (Blockers)
+
+- [ ] **Remove hardcoded private key** from `deploy-wsl.sh` and purge git history
+- [ ] **Remove `NEXT_PUBLIC_PINATA_JWT_TOKEN` fallback** from API route (line 3 in `route.ts`)
+- [ ] **Delete old empty route directories** (`app/dashboard/`, `app/marketplace/`, `app/files/`, `app/my-files/`, `app/purchased/`, `app/settings/`)
+- [ ] **Un-gitignore `.env.example`** so collaborators can set up the project
+- [ ] **Call `validateEnv()` at startup** (root layout or API route)
+- [ ] **Add rate limiting** to `/api/upload` (e.g., IP-based throttle)
+- [ ] **Add wallet signature verification** to `/api/upload` so only connected wallets can upload
+
+### ⚠️ Should-Fix (Critical for Production)
+
+- [ ] **Implement on-chain payment** (`purchase_file` transition in the contract)
+- [ ] **Check `revoked_access` mapping** before showing files on `Purchased` page
+- [ ] **Expose `set_price`** in the file detail UI (for owners)
+- [ ] **Add metadata backup** — store encrypted metadata CID on IPFS alongside the file
+- [ ] **Add mobile responsive header** with hamburger menu
+- [ ] **Validate price field** as numeric (positive integer)
+- [ ] **Add download error display** for owner downloads (currently no `downloadError` shown in owner download section)
+
+### 🟢 Nice-to-Have (Polish)
+
+- [ ] Search and filter in marketplace
+- [ ] Pagination for large file counts
+- [ ] Toast notifications (`sonner` or `react-hot-toast`)
+- [ ] Password strength indicator
+- [ ] File type detection and icons
+- [ ] Transaction history page
+- [ ] Wallet balance display
+- [ ] Unit tests for `encrypt.ts`, `encode.ts`, `upload.ts`
+- [ ] E2E test for upload flow
+- [ ] CI/CD pipeline (GitHub Actions)
+
+---
+
+## 💡 Section 6: Suggestions for Production
+
+### 1. Smart Contract Improvement
+
+The contract needs at minimum these additions to be a real marketplace:
+
+```leo
+// Suggested: purchase_file transition
+async transition purchase_file(
+    public file_id: u64,
+    payment: credits.leo/credits,  // transfer credits
+) -> (access_record, Future) {
+    // Verify payment amount matches price
+    // Transfer credits to file owner
+    // Create access_record for buyer
+}
+
+// Suggested: delete_file transition
+async transition delete_file(
+    public file_id: u64,
+    input file_record,
+) -> Future {
+    // Verify ownership
+    // Remove from files mapping
+}
+```
+
+### 2. Secure the Upload API
 
 ```typescript
-const key = `privyshare_meta_${nextId}`;
-localStorage.setItem(key, JSON.stringify(meta));
+// Add to /api/upload/route.ts:
+// 1. Rate limiting (e.g., 10 uploads per minute per IP)
+// 2. Wallet signature verification in request headers
+// 3. File size validation server-side (don't trust client)
+// 4. Remove NEXT_PUBLIC_PINATA_JWT_TOKEN fallback
 ```
 
-**Problem:** CID, IV, salt, filename, and description are stored **only in the browser's localStorage**. If the user:
-- Clears browser data → **all metadata lost, files unrecoverable**
-- Uses a different device → **no access to their own files**
-- Incognito mode → **data never persists**
+### 3. Metadata Persistence
 
-**Fix:** Store metadata in an encrypted IPFS file or use an off-chain database like Ceramic/OrbitDB.
+Instead of localStorage only, after uploading:
+1. Create a JSON metadata file: `{ fileId, cid, name, description, iv, salt }`
+2. Encrypt it with the same password
+3. Upload to IPFS as a separate pin
+4. Store the metadata CID in localStorage AND share it with the encryption params
 
----
+### 4. Deployment Checklist
 
-### Vuln 4: No Input Validation on Aleo Addresses
-
-**File:** [files/[id]/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/files/%5Bid%5D/page.tsx#L94-L108)
-
-```typescript
-const handleGrantAccess = async () => {
-  // No validation that buyerAddress is a valid Aleo address
-  await executeTransaction({
-    inputs: [`${id}u64`, buyerAddress.trim()],
-  });
-};
-```
-
-**Problem:** No check that the address starts with `aleo1` and is the correct length/format. Invalid addresses will waste gas on a transaction that fails on-chain.
-
----
-
-### Vuln 5: No File Size Limits
-
-**File:** [upload/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/upload/page.tsx#L99-L107)
-
-**Problem:** No limit on uploaded file size. A user could upload a GB+ file, which:
-- Crashes the browser during encryption (memory)
-- Exceeds IPFS pinning service limits
-- Creates useless on-chain entries
-
----
-
-## 🏗️ Section 3: Architecture & Design Issues
-
-### Issue 1: No Error Boundaries / Global Error Handling
-
-**Problem:** All pages use page-level try/catch. If a wallet adapter throws during render, the **entire app crashes** to a white screen. No React Error Boundary anywhere.
-
----
-
-### Issue 2: No Loading Skeleton / UX States
-
-**Problem:** Loading states are plain text `"Loading..."`. No skeleton loaders, no spinners, no progress indicators during file encryption (which can take seconds for large files).
-
----
-
-### Issue 3: Footer Inside `<main>` on Some Pages
-
-**Files:** [dashboard/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/dashboard/page.tsx#L61), [marketplace/page.tsx](file:///c:/Users/BMSIT/ShadowVault/app/marketplace/page.tsx#L80)
-
-Footer is inside `<main>` on dashboard and marketplace but outside on the landing page. Inconsistent layout.
-
----
-
-### Issue 4: No Shared Layout for Authenticated Pages
-
-**Problem:** Every page independently renders `<Header />` and `<Footer />`. Should use a shared layout (Next.js nested layouts) for `dashboard`, `marketplace`, [upload](file:///c:/Users/BMSIT/ShadowVault/lib/ipfs/client.ts#12-44), `files`, `my-files`, `purchased`, `settings`.
-
----
-
-### Issue 5: `ipfs-http-client` Dependency Unused
-
-**File:** [package.json](file:///c:/Users/BMSIT/ShadowVault/package.json#L20)
-
-```json
-"ipfs-http-client": "^60.0.1"
-```
-
-This package is listed but **never imported anywhere** in the codebase. The IPFS integration uses plain [fetch()](file:///c:/Users/BMSIT/ShadowVault/lib/ipfs/client.ts#45-51) calls instead. Dead dependency.
-
----
-
-### Issue 6: No TypeScript Strict Mode Issues Addressed
-
-The `@provablehq/aleo-types` import in [usePrivyWallet.ts](file:///c:/Users/BMSIT/ShadowVault/lib/wallet/usePrivyWallet.ts#L4) — the [Network](file:///c:/Users/BMSIT/ShadowVault/lib/wallet/usePrivyWallet.ts#15-20) type may not be properly exported from the alpha packages, leading to potential build failures.
-
----
-
-## 📜 Section 4: Smart Contract Analysis
-
-### Strengths
-- ✅ Proper use of `@noupgrade async constructor()`
-- ✅ `Mapping::get_or_use` for the counter
-- ✅ Owner assertion (`assert_eq(info.owner, self.caller)`) on `grant_access` and `revoke_access`
-- ✅ `file_record` and `access_record` as private records
-
-### Weaknesses
-
-| Issue | Description | Severity |
-|-------|-------------|----------|
-| No `purchase_file` | No on-chain payment mechanism | 🔴 CRITICAL |
-| No file deletion | Owner cannot remove a file from listings | ⚠️ MEDIUM |
-| No file metadata on-chain | Name and description only in localStorage | ⚠️ MEDIUM |
-| No access verification function | Can't check on-chain if a user has access | ⚠️ MEDIUM |
-| `revoke_access` doesn't burn records | Access records still exist even after revocation | ⚠️ MEDIUM |
-| No event emission | No way to track transaction history | ⚠️ LOW |
-| Price is `u64` only | No support for different token types | ⚠️ LOW |
-
-### Missing Smart Contract Functions (Referenced in [proejct.md](file:///c:/Users/BMSIT/ShadowVault/proejct.md) but not implemented)
-
-1. **`purchase_file()`** — No trustless payment flow
-2. **`verify_access()`** — No on-chain access verification
-3. **`delete_file()`** — No way to de-list a file
-
----
-
-## 🚫 Section 5: Missing Features for Production Readiness
-
-### Critical Missing Features
-
-| Feature | Current State | What's Needed |
-|---------|---------------|---------------|
-| **On-chain payments** | Not implemented | `purchase_file` transition with Aleo credit transfer |
-| **Metadata persistence** | localStorage only | Encrypted IPFS manifest or database |
-| **Error recovery** | None | Retry logic for failed transactions |
-| **File previews** | Shows only "File #N" | Store thumbnail/metadata on IPFS |
-| **Search/Filter** | None | Search by name, filter by price, sort |
-| **Pagination** | None | Paginate marketplace for scalability |
-| **Transaction history** | None (listed in project spec) | Transaction log page |
-| **Private balance display** | None (listed in settings spec) | Query and display wallet balance |
-| **File size display** | None | Show file size in listings |
-| **Download progress** | None | Progress bar for large file downloads |
-
-### Missing Technical Infrastructure
-
-| Feature | Status |
-|---------|--------|
-| Unit tests | ❌ None |
-| Integration tests | ❌ None |
-| E2E tests | ❌ None |
-| CI/CD pipeline | ❌ None |
-| Rate limiting | ❌ None |
-| Logging/monitoring | ❌ None |
-| SEO (meta tags per page) | ⚠️ Only root layout |
-| `.env.local` validation | ❌ No startup checks |
-| Responsive design testing | ⚠️ Basic only |
-
----
-
-## 🎨 Section 6: UI/UX Improvements Needed
-
-### Current UI Issues
-1. **Bland color scheme** — All monochrome gray; no brand colors, gradients, or visual accents
-2. **No file type icons** — Every file shows the same generic SVG badge
-3. **No empty state illustrations** — Just plain text "No files"
-4. **No confirmation dialogs** — Grant/revoke access happens with zero confirmation
-5. **No toast notifications** — Success and error feedback are inline text only
-6. **No mobile navigation** — Header nav breaks on small screens (no hamburger menu)
-7. **No dark/light mode toggle** — Hardcoded dark mode only
-8. **Settings page has no actual settings** — Only shows address and disconnect
-9. **No "copy CID" button** — Owner needs to manually share CID with buyer
-10. **Password strength indicator missing** — No feedback on encryption password quality
-
-### Suggested Visual Enhancements
-- Add gradient accents or brand color (e.g., Aleo teal/purple)
-- Add subtle glow effects or glassmorphism for cards
-- Skeleton loading states instead of text "Loading..."
-- Animated success/error toasts (e.g., using `sonner` or `react-hot-toast`)
-- File type detection (show 📄 PDF, 🖼️ Image, 📊 Spreadsheet icons)
-- Progress stepper during upload flow (Encrypt → Upload → Register)
-
----
-
-## 💡 Section 7: Actionable Suggestions & Priority
-
-### 🔴 Priority 1 — Must Fix Before Any Deployment
-
-1. **Remove hardcoded private key** from [scripts/deploy-wsl.sh](file:///c:/Users/BMSIT/ShadowVault/scripts/deploy-wsl.sh)
-2. **Move IPFS API keys to server-side** (create `/api/upload` route)
-3. **Fix the zeroed IV/salt fallback** — throw an error instead
-4. **Add file size validation** (max 50MB or similar)
-5. **Implement on-chain payment** (`purchase_file` transition)
-6. **Add retry logic** for the file registration race condition
-
-### ⚠️ Priority 2 — Required for Usability
-
-7. **Parallelize [listFiles()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/programState.ts#52-64) calls** (use `Promise.all` with batching)
-8. **Replace [cidToField()](file:///c:/Users/BMSIT/ShadowVault/lib/aleo/encode.ts#1-18) with SHA-256** based hash
-9. **Add Aleo address validation** before submitting transactions
-10. **Add React Error Boundary** component
-11. **Add metadata backup** to IPFS (encrypted metadata file)
-12. **Add loading skeletons** and toast notifications
-13. **Add confirmation dialogs** for grant/revoke access
-
-### 🟢 Priority 3 — Polish & Production Quality
-
-14. **Create shared authenticated layout** (nested Next.js layout)
-15. **Remove unused `ipfs-http-client`** dependency
-16. **Add search/filter/pagination** to marketplace
-17. **Add transaction history** page
-18. **Add file previews/thumbnails**
-19. **Mobile-responsive header** with hamburger menu
-20. **Add unit tests** for crypto, encoding, and upload modules
-21. **Set up CI/CD** (GitHub Actions)
-22. **Add `.env` validation** at startup (zod schema)
+Before deploying to production:
+1. Set up `.env.local` with real values
+2. Deploy the smart contract to testnet (or mainnet)
+3. Verify contract on Aleo explorer
+4. Test end-to-end with a real wallet
+5. Set up HTTPS (required for `crypto.subtle`)
+6. Add Content Security Policy headers
+7. Run `next build` to verify no build errors
 
 ---
 
 ## 🏁 Summary
 
-The PrivyShare project has a **solid foundation** — the file encryption is well-implemented, the wallet adapter integration follows the correct patterns (with `@provablehq` packages), and the Leo smart contract structure is clean and follows Leo 3.4.0 best practices with proper constructors and mapping access.
+**Significant progress!** You fixed 14 of the original issues. The app is much more robust now with proper error handling, skeleton loaders, server-side uploads, SHA-256 hashing, and retry logic.
 
-**However, it is NOT production-ready.** The critical gaps are:
+**But it's still not production-ready.** The three biggest remaining gaps are:
 
-1. **No trustless payments** — the core marketplace feature is trust-based, not enforced by smart contract
-2. **Security issues** — exposed API keys, hardcoded private key, no input validation
-3. **Data fragility** — all file metadata lives only in `localStorage`
-4. **Performance** — sequential RPC calls will break at scale
-5. **No tests of any kind** — zero confidence in correctness
+1. 🔴 **Security** — Private key in git, unprotected upload API, `NEXT_PUBLIC_` JWT fallback
+2. 🔴 **Smart Contract** — No on-chain payment; the marketplace is trust-based, not trustless
+3. ⚠️ **Data Loss Risk** — Metadata in localStorage only; clear browser = lose access to files
 
-The app would need the Priority 1 fixes at minimum before any real-world deployment. With the Priority 2 fixes, it would be a usable MVP. With all three priority levels, it would be a polished, production-grade dApp.
+Fix the Must-Fix items first, then tackle Should-Fix for a credible MVP.

@@ -1,6 +1,7 @@
 "use client";
 
 import { AleoWalletProvider } from "@provablehq/aleo-wallet-adaptor-react";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { WalletModalProvider } from "@provablehq/aleo-wallet-adaptor-react-ui";
 import { LeoWalletAdapter } from "@provablehq/aleo-wallet-adaptor-leo";
 import { PuzzleWalletAdapter } from "@provablehq/aleo-wallet-adaptor-puzzle";
@@ -19,6 +20,7 @@ const wallets = [
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
+    <ErrorBoundary>
     <AleoWalletProvider
       wallets={wallets}
       network={Network.TESTNET}
@@ -27,5 +29,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <WalletModalProvider>{children}</WalletModalProvider>
     </AleoWalletProvider>
+    </ErrorBoundary>
   );
 }

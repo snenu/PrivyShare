@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # PrivyShare Leo contract deployment for WSL
-# Run from project root in WSL: bash scripts/deploy-wsl.sh
+# Run from project root in WSL: PRIVATE_KEY=xxx bash scripts/deploy-wsl.sh
 # Requires: WSL with Ubuntu, Leo CLI (https://developer.aleo.org/leo/installation)
-# SECURITY: This file contains a private key. Do NOT commit to public repos.
 
 set -e
 
-PRIVATE_KEY="APrivateKey1zkpBNfBdXXqjKoGq66PhJANkwbmtX5Pm19BqnwLnVMiFuJX"
+PRIVATE_KEY="${PRIVATE_KEY:?PRIVATE_KEY env var required. Run: PRIVATE_KEY=xxx bash scripts/deploy-wsl.sh}"
 ENDPOINT="https://api.explorer.provable.com/v2"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONTRACT_DIR="$PROJECT_ROOT/contracts/privyshare_files_7879"

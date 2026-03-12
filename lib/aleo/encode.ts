@@ -1,17 +1,15 @@
 /**
- * Encode an IPFS CID (or any string) to a Leo field value.
- * Leo field is a large integer; we use a deterministic hash so the same CID maps to the same field.
- * The actual CID is stored off-chain; the chain stores this commitment for listing/dedup.
+ * Encode an IPFS CID to a Leo field value using SHA-256.
+ * Uses first 248 bits of hash to avoid collision risk (vs 32-bit DJB2).
  */
-export function cidToField(cid: string): string {
-  let h = 0;
-  const s = cid + "privyshare";
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    h = (h << 5) - h + c;
-    h |= 0;
+export async function cidToField(cid: string): Promise<string> {
+  const enc = new TextEncoder();
+  const data = enc.encode(cid + "privyshare");
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(hash);
+  let big = BigInt(0);
+  for (let i = 0; i < Math.min(31, bytes.length); i++) {
+    big = big * BigInt(256) + BigInt(bytes[i]);
   }
-  const u = Math.abs(h);
-  const big = BigInt(u) * BigInt(1e10) + BigInt(u.toString().length);
   return big.toString();
 }

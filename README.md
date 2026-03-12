@@ -24,17 +24,19 @@ Copy `.env.example` to `.env.local` and set:
 
 - `NEXT_PUBLIC_ALEO_RPC_URL` – e.g. `https://api.explorer.provable.com/v2`
 - `NEXT_PUBLIC_PRIVYSHARE_PROGRAM_ID` – e.g. `privyshare_files_7879.aleo` (must match your deployed program)
-- For uploads: `NEXT_PUBLIC_IPFS_API_URL`, `NEXT_PUBLIC_IPFS_API_KEY` (and optionally `NEXT_PUBLIC_IPFS_API_SECRET` for Pinata)
-- `NEXT_PUBLIC_IPFS_GATEWAY` – e.g. `https://ipfs.io/ipfs/` for reads
+- `PINATA_JWT` – server-side Pinata JWT for uploads (never use `NEXT_PUBLIC_*` for secrets)
+- `NEXT_PUBLIC_PINATA_GATEWAY` – e.g. `https://gateway.pinata.cloud/ipfs/` for reads
+- `MONGODB_URI` – MongoDB connection string for users and file metadata (optional; falls back to localStorage)
 
 ### 3. Deploy the Leo program (optional if already deployed)
 
-**Option A: WSL script (includes key)**
+**Option A: WSL script**
 
 1. Install WSL with Ubuntu: `wsl --install`
 2. Open WSL, navigate to project: `cd /mnt/c/Users/YOUR_USER/ShadowVault`
 3. Install Leo CLI: https://developer.aleo.org/leo/installation
-4. Run: `bash scripts/deploy-wsl.sh`
+4. Set your private key: `export PRIVATE_KEY="your_aleo_private_key"`
+5. Run: `bash scripts/deploy-wsl.sh`
 
 **Option B: Manual**
 

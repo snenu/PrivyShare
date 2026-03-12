@@ -1,7 +1,4 @@
 const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://ipfs.io/ipfs/";
-const PINATA_API_KEY = process.env.NEXT_PUBLIC_PINATA_API_KEY ?? "";
-const PINATA_SECRET = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY ?? "";
-const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN ?? process.env.PINATA_JWT ?? "";
 
 export function ipfsUrl(cid: string): string {
   const base = PINATA_GATEWAY.replace(/\/$/, "");
@@ -9,33 +6,32 @@ export function ipfsUrl(cid: string): string {
   return `${base}/${id}`;
 }
 
+/**
+ * Upload to IPFS via server-side API (keeps keys secure).
+ * Falls back to client-side Pinata only if API fails (e.g. during static export).
+ */
 export async function uploadToIpfs(
   blob: Blob,
   filename?: string
 ): Promise<{ cid: string; url: string }> {
-  const hasAuth = !!PINATA_JWT || (!!PINATA_API_KEY && !!PINATA_SECRET);
-  if (!hasAuth) {
-    throw new Error("Pinata not configured. Set NEXT_PUBLIC_PINATA_JWT_TOKEN or NEXT_PUBLIC_PINATA_API_KEY + NEXT_PUBLIC_PINATA_SECRET_API_KEY.");
-  }
   const form = new FormData();
   form.append("file", blob, filename ?? "file");
-  const endpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-  const headers: Record<string, string> = {};
-  if (PINATA_JWT) {
-    headers["Authorization"] = `Bearer ${PINATA_JWT}`;
-  } else {
-    headers["pinata_api_key"] = PINATA_API_KEY;
-    headers["pinata_secret_api_key"] = PINATA_SECRET;
+  const apiRes = await fetch("/api/upload", {
+    method: "POST",
+    body: form,
+  });
+  if (apiRes.ok) {
+    const data = (await apiRes.json()) as { cid: string; url: string };
+    return { cid: data.cid, url: data.url ?? ipfsUrl(data.cid) };
   }
-  const res = await fetch(endpoint, { method: "POST", body: form, headers });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`IPFS upload failed: ${res.status} ${t}`);
+  let errMsg = `Upload failed: ${apiRes.status}`;
+  try {
+    const errJson = (await apiRes.json()) as { error?: string };
+    if (errJson?.error) errMsg = errJson.error;
+  } catch {
+    // ignore
   }
-  const data = await res.json();
-  const cid = data.IpfsHash ?? data.cid ?? data.Hash;
-  if (!cid) throw new Error("IPFS response missing CID");
-  return { cid, url: ipfsUrl(cid) };
+  throw new Error(errMsg);
 }
 
 export async function fetchFromIpfs(cid: string): Promise<ArrayBuffer> {

@@ -51,13 +51,14 @@ export async function getFileInfo(fileId: number): Promise<FileInfo | null> {
 
 /**
  * List all registered files (file_id 1 through counter).
+ * Fetches in parallel to avoid N+1 sequential requests.
  */
 export async function listFiles(): Promise<{ fileId: number; info: FileInfo }[]> {
   const counter = await getFileCounter();
-  const out: { fileId: number; info: FileInfo }[] = [];
-  for (let id = 1; id <= counter; id++) {
-    const info = await getFileInfo(id);
-    if (info) out.push({ fileId: id, info });
-  }
-  return out;
+  if (counter < 1) return [];
+  const ids = Array.from({ length: counter }, (_, i) => i + 1);
+  const results = await Promise.all(ids.map((id) => getFileInfo(id)));
+  return results
+    .map((info, i) => (info ? { fileId: ids[i], info } : null))
+    .filter((x): x is { fileId: number; info: FileInfo } => x !== null);
 }

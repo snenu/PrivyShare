@@ -8,10 +8,7 @@ export function WalletButtons() {
     <div className="flex flex-wrap items-center justify-center gap-4">
       <WalletMultiButton />
       <Link href="/marketplace" className="btn-secondary">
-        Explore Files
-      </Link>
-      <Link href="/upload" className="btn-primary">
-        Upload File
+        Browse marketplace
       </Link>
     </div>
   );

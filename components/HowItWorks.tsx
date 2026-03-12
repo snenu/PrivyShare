@@ -1,53 +1,65 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const steps = [
   {
-    title: "Encrypt & upload",
-    body: "Files are encrypted on your device, then stored on IPFS. Only you control the key.",
+    title: "Upload & encrypt",
+    body: "Your file is encrypted on your device before upload. Only you hold the key. Share via QR or link.",
     icon: "/lock-badge.svg",
   },
   {
-    title: "List on Aleo",
-    body: "Ownership and listing are recorded on Aleo with private state. Set your price.",
+    title: "List & share",
+    body: "Set your price. Get a shareable link and QR code. Anyone can scan, visit, and pay—no account needed to view.",
     icon: "/file-badge.svg",
   },
   {
-    title: "Private purchase & access",
-    body: "Buyers pay privately. Access is verified with ZK proofs—no identity leakage.",
+    title: "Private purchase",
+    body: "Buyer connects wallet, pays you. You grant access. They download with the decryption key you share.",
     icon: "/lock-badge.svg",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="px-4 py-20">
+    <section className="px-4 sm:px-6 py-20 sm:py-28 border-b border-privy-gray-800">
       <div className="mx-auto max-w-6xl">
         <motion.h2
-          className="text-center text-2xl font-semibold"
+          className="text-3xl md:text-4xl font-bold text-privy-white"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
           How it works
         </motion.h2>
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
+        <motion.p
+          className="mt-4 text-lg text-privy-gray-400 max-w-2xl"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+        >
+          Each user has their own dashboard. Connect wallet = login. Share files with anyone.
+        </motion.p>
+        <div className="mt-12 sm:mt-16 grid gap-6 sm:gap-8 md:grid-cols-3">
           {steps.map((item, i) => (
             <motion.div
               key={item.title}
-              className="card flex flex-col items-center text-center"
-              initial={{ opacity: 0, y: 24 }}
+              className="rounded-2xl border border-privy-gray-800 bg-privy-gray-900/60 p-8 flex flex-col items-center text-center group hover:border-privy-gray-700 transition-colors"
+              initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              whileHover={{ scale: 1.02 }}
+              transition={{ delay: i * 0.12, type: "spring", stiffness: 100 }}
+              whileHover={{ y: -6 }}
             >
-              <div className="mb-4 h-12 w-12 opacity-80">
-                <img src={item.icon} alt="" className="w-full h-full" />
-              </div>
-              <h3 className="font-medium">{item.title}</h3>
-              <p className="mt-2 text-sm text-privy-gray-400">{item.body}</p>
+              <motion.div
+                className="mb-6 h-16 w-16 rounded-2xl bg-privy-gray-800/80 flex items-center justify-center opacity-90 group-hover:opacity-100"
+                whileHover={{ rotate: 5, scale: 1.05 }}
+              >
+                <img src={item.icon} alt="" className="w-8 h-8" />
+              </motion.div>
+              <h3 className="font-semibold text-xl text-privy-white">{item.title}</h3>
+              <p className="mt-4 text-privy-gray-400 leading-relaxed">{item.body}</p>
             </motion.div>
           ))}
         </div>
