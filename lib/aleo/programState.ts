@@ -43,7 +43,7 @@ export async function getFileInfo(fileId: number): Promise<FileInfo | null> {
   const value = data?.value ?? data;
   if (!value || typeof value !== "object") return null;
   return {
-    owner: String(value.owner ?? ""),
+    owner: String(value.file_owner ?? value.owner ?? ""),
     ipfs_cid: String(value.ipfs_cid ?? value.ipfs_cid ?? ""),
     price: String(value.price ?? "0"),
   };
