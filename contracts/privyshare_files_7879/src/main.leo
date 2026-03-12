@@ -41,15 +41,16 @@ program privyshare_files_7879.aleo {
     @noupgrade
     async constructor() {}
 
-    // Register a new file. Caller must pass next file_id (query file_counter first); async block verifies and stores.
+    // Register a new file. Caller must pass next file_id and owner (must equal self.caller). Async block verifies and stores.
     async transition register_file(
+        public owner: address,
         public ipfs_cid: field,
         public price: u64,
         public file_id: u64,
     ) -> (file_record, Future) {
-        let caller = self.caller;
+        assert_eq(owner, self.caller);
         let rec = file_record {
-            owner: caller,
+            owner,
             file_id,
             ipfs_cid,
             price,
@@ -59,7 +60,7 @@ program privyshare_files_7879.aleo {
             assert_eq(file_id, current + 1u64);
             Mapping::set(file_counter, 0u8, file_id);
             Mapping::set(files, file_id, file_info {
-                file_owner: caller,
+                file_owner: owner,
                 ipfs_cid,
                 price,
             });
@@ -73,14 +74,13 @@ program privyshare_files_7879.aleo {
         public new_price: u64,
         input: file_record,
     ) -> (file_record, Future) {
-        let caller = self.caller;
+        assert_eq(input.owner, self.caller);
         let fut = async {
             let info = Mapping::get(files, file_id);
             assert_eq(info.file_owner, input.owner);
-            assert_eq(input.owner, caller);
             assert_eq(input.file_id, file_id);
             Mapping::set(files, file_id, file_info {
-                file_owner: info.file_owner,
+                file_owner: input.owner,
                 ipfs_cid: info.ipfs_cid,
                 price: new_price,
             });
@@ -97,13 +97,14 @@ program privyshare_files_7879.aleo {
     // Owner grants access to buyer (e.g. after payment). Creates AccessRecord for buyer.
     // Clears revoked_access so a previously revoked buyer can be re-granted.
     async transition grant_access(
+        public owner: address,
         public file_id: u64,
         public buyer: address,
     ) -> (access_record, Future) {
-        let caller = self.caller;
+        assert_eq(owner, self.caller);
         let fut = async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.file_owner, caller);
+            assert_eq(info.file_owner, owner);
             let k = access_key { file_id, user: buyer };
             Mapping::set(revoked_access, k, false);
         };
@@ -113,13 +114,14 @@ program privyshare_files_7879.aleo {
 
     // Owner revokes access for a buyer.
     async transition revoke_access(
+        public owner: address,
         public file_id: u64,
         public buyer: address,
     ) -> Future {
-        let caller = self.caller;
+        assert_eq(owner, self.caller);
         return async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.file_owner, caller);
+            assert_eq(info.file_owner, owner);
             let k = access_key { file_id, user: buyer };
             Mapping::set(revoked_access, k, true);
         };
@@ -131,21 +133,22 @@ program privyshare_files_7879.aleo {
     // Input: payment = buyer's credits record (must have microcredits >= price).
     // Returns: buyer's change record, access_record for buyer.
     async transition purchase_file(
+        public buyer: address,
         public file_id: u64,
         public seller: address,
         public price: u64,
         input: credits.aleo/credits,
     ) -> (credits.aleo/credits, access_record, Future) {
-        let caller = self.caller;
-        assert_eq(input.owner, caller);
+        assert_eq(buyer, self.caller);
+        assert_eq(input.owner, buyer);
         assert(input.microcredits >= price);
         let (seller_rec, buyer_change) = credits.aleo/transfer_private(input, seller, price);
-        let rec = access_record { owner: caller, file_id };
+        let rec = access_record { owner: buyer, file_id };
         let fut = async {
             let info = Mapping::get(files, file_id);
             assert_eq(info.file_owner, seller);
             assert_eq(info.price, price);
-            let k = access_key { file_id, user: caller };
+            let k = access_key { file_id, user: buyer };
             Mapping::set(revoked_access, k, false);
         };
         return (buyer_change, rec, fut);

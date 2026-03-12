@@ -139,7 +139,7 @@ export default function FileDetailPage() {
 
   const handleGrantAccess = async () => {
     const addr = buyerAddress.trim();
-    if (!connected || !addr || !executeTransaction || !programId) return;
+    if (!connected || !address || !addr || !executeTransaction || !programId) return;
     if (!isValidAleoAddress(addr)) {
       setDownloadError("Invalid Aleo address. Must start with aleo1 and be 63 characters.");
       return;
@@ -150,7 +150,7 @@ export default function FileDetailPage() {
       await executeTransaction({
         program: programId,
         function: "grant_access",
-        inputs: [`${id}u64`, addr],
+        inputs: [address!, `${id}u64`, addr],
       });
       setBuyerAddress("");
     } catch (e) {
@@ -162,7 +162,7 @@ export default function FileDetailPage() {
 
   const handleRevokeAccess = async () => {
     const addr = revokeAddress.trim();
-    if (!connected || !addr || !executeTransaction || !programId) return;
+    if (!connected || !address || !addr || !executeTransaction || !programId) return;
     if (!isValidAleoAddress(addr)) {
       setDownloadError("Invalid Aleo address.");
       return;
@@ -173,7 +173,7 @@ export default function FileDetailPage() {
       await executeTransaction({
         program: programId,
         function: "revoke_access",
-        inputs: [`${id}u64`, addr],
+        inputs: [address!, `${id}u64`, addr],
       });
       setRevokeAddress("");
     } catch (e) {
@@ -195,12 +195,12 @@ export default function FileDetailPage() {
     setPurchasing(true);
     setPurchaseError(null);
     try {
-      // purchase_file(file_id, seller, price, payment_record)
+      // purchase_file(buyer, file_id, seller, price, payment_record)
       // Wallet prompts for credits record selection when record input is needed
       await executeTransaction({
         program: programId,
         function: "purchase_file",
-        inputs: [`${id}u64`, info.owner, `${info.price}u64`],
+        inputs: [address!, `${id}u64`, info.owner, `${info.price}u64`],
       });
       setPurchaseError(null);
     } catch (e) {

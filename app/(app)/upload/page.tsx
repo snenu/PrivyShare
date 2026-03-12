@@ -23,7 +23,7 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!connected || !file || !password.trim() || !price.trim() || !executeTransaction) {
+    if (!connected || !address || !file || !password.trim() || !price.trim() || !executeTransaction) {
       setError("Connect wallet and fill file, password, and price.");
       return;
     }
@@ -44,7 +44,7 @@ export default function UploadPage() {
           const result = await executeTransaction({
             program: programId,
             function: "register_file",
-            inputs: [`${fieldValue}field`, `${price.trim()}u64`, `${nextId}u64`],
+            inputs: [address!, `${fieldValue}field`, `${price.trim()}u64`, `${nextId}u64`],
           });
           if (result?.transactionId) {
             setTxId(result.transactionId);
