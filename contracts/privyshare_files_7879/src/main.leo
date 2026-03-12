@@ -70,13 +70,13 @@ program privyshare_files_7879.aleo {
     async transition set_price(
         public file_id: u64,
         public new_price: u64,
-        input file_record,
+        input file_rec: file_record,
     ) -> (file_record, Future) {
         let fut = async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.owner, input.owner);
-            assert_eq(input.owner, self.caller);
-            assert_eq(input.file_id, file_id);
+            assert_eq(info.owner, file_rec.owner);
+            assert_eq(file_rec.owner, self.caller);
+            assert_eq(file_rec.file_id, file_id);
             Mapping::set(files, file_id, file_info {
                 owner: info.owner,
                 ipfs_cid: info.ipfs_cid,
@@ -84,9 +84,9 @@ program privyshare_files_7879.aleo {
             });
         };
         let rec = file_record {
-            owner: input.owner,
+            owner: file_rec.owner,
             file_id,
-            ipfs_cid: input.ipfs_cid,
+            ipfs_cid: file_rec.ipfs_cid,
             price: new_price,
         };
         return (rec, fut);
