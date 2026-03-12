@@ -4,12 +4,13 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
-import { getFileInfo } from "@/lib/aleo/programState";
+import { getFileInfo, getRevokedAccess } from "@/lib/aleo/programState";
 import type { FileInfo } from "@/lib/aleo/programState";
 import { fetchFromIpfs } from "@/lib/ipfs/client";
 import { decryptFile } from "@/lib/crypto/encrypt";
 import { decodeBase64ToUint8 } from "@/lib/upload";
 import { isValidAleoAddress } from "@/lib/aleo/validate";
+import { formatPrice } from "@/lib/formatPrice";
 import { Skeleton } from "@/components/Skeleton";
 import { ShareCard } from "@/components/ShareCard";
 
@@ -50,6 +51,9 @@ export default function FileDetailPage() {
   const [downloadSalt, setDownloadSalt] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [accessRevoked, setAccessRevoked] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   const isOwner = connected && address && info?.owner === address;
 
@@ -80,7 +84,18 @@ export default function FileDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (!id || isNaN(id) || !address || isOwner) return;
+    getRevokedAccess(id, address)
+      .then(setAccessRevoked)
+      .catch(() => setAccessRevoked(false));
+  }, [id, address, isOwner]);
+
   const handleDownload = async () => {
+    if (accessRevoked) {
+      setDownloadError("Your access has been revoked by the owner.");
+      return;
+    }
     const cid = (meta?.cid ?? downloadCid).trim();
     const password = downloadPassword.trim();
     const ivB64 = meta?.ivBase64 ?? downloadIv.trim();
@@ -167,6 +182,27 @@ export default function FileDetailPage() {
     }
   };
 
+  const handlePurchase = async () => {
+    if (!connected || !info || !executeTransaction || !programId || !address) return;
+    if (accessRevoked) return;
+    setPurchasing(true);
+    setPurchaseError(null);
+    try {
+      // purchase_file(file_id, seller, price, payment_record)
+      // Wallet prompts for credits record selection when record input is needed
+      await executeTransaction({
+        program: programId,
+        function: "purchase_file",
+        inputs: [`${id}u64`, info.owner, `${info.price}u64`],
+      });
+      setPurchaseError(null);
+    } catch (e) {
+      setPurchaseError(e instanceof Error ? e.message : "Purchase failed");
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -199,7 +235,7 @@ export default function FileDetailPage() {
         {meta?.description && (
           <p className="mt-2 text-sm text-privy-gray-400">{meta.description}</p>
         )}
-        <p className="mt-2 text-sm">Price: {info.price} credits</p>
+        <p className="mt-2 text-sm">Price: {formatPrice(info.price)}</p>
         <p className="mt-1 text-xs text-privy-gray-500">Owner: {info.owner.slice(0, 12)}...</p>
         {isOwner && meta?.cid && (
           <div className="mt-4 flex items-center gap-2">
@@ -294,10 +330,37 @@ export default function FileDetailPage() {
 
       {!isOwner && connected && (
         <>
+          {accessRevoked && (
+            <div className="card mt-6 border-amber-500/50 bg-amber-500/10">
+              <h2 className="font-medium text-amber-400">Access revoked</h2>
+              <p className="mt-1 text-sm text-privy-gray-400">
+                The owner has revoked your access to this file. Download is disabled.
+              </p>
+            </div>
+          )}
+          {!accessRevoked && info && (
+            <div className="card mt-6">
+              <h2 className="font-medium">Purchase with on-chain payment</h2>
+              <p className="mt-1 text-sm text-privy-gray-400">
+                Pay {formatPrice(info.price)} directly on-chain. You need private credits (from faucet). Wallet will prompt to select a credits record.
+              </p>
+              {purchaseError && (
+                <p className="mt-2 text-sm text-red-400">{purchaseError}</p>
+              )}
+              <button
+                type="button"
+                className="btn-primary mt-3"
+                onClick={handlePurchase}
+                disabled={purchasing}
+              >
+                {purchasing ? "Purchasing..." : "Purchase"}
+              </button>
+            </div>
+          )}
           <div className="card mt-6">
-            <h2 className="font-medium">Your address for payment</h2>
+            <h2 className="font-medium">Or: Manual payment</h2>
             <p className="mt-2 text-sm text-privy-gray-400">
-              Share this with the seller so they can grant access after payment.
+              Share your address with the seller. Pay off-chain, then they grant access.
             </p>
             <p className="mt-2 font-mono text-xs break-all bg-privy-gray-800 p-3 rounded">{address}</p>
             <button
@@ -348,9 +411,9 @@ export default function FileDetailPage() {
               type="button"
               className="btn-primary mt-3"
               onClick={handleDownload}
-              disabled={downloading || !downloadCid.trim() || !downloadPassword.trim() || !downloadIv.trim() || !downloadSalt.trim()}
+              disabled={accessRevoked || downloading || !downloadCid.trim() || !downloadPassword.trim() || !downloadIv.trim() || !downloadSalt.trim()}
             >
-              {downloading ? "Decrypting..." : "Download"}
+              {accessRevoked ? "Access revoked" : downloading ? "Decrypting..." : "Download"}
             </button>
           </div>
         </>

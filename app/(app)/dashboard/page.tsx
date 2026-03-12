@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
 import { listFiles } from "@/lib/aleo/programState";
 import type { FileInfo } from "@/lib/aleo/programState";
+import { formatPrice } from "@/lib/formatPrice";
 import { motion } from "framer-motion";
 
 function loadLocalMeta(fileId: number): { name?: string } | null {
@@ -215,7 +216,7 @@ export default function DashboardPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-privy-white truncate">{name}</p>
                     <p className="text-sm text-privy-gray-500">
-                      #{fileId} · {info.price} credits
+                      #{fileId} · {formatPrice(info.price)}
                     </p>
                   </div>
                   <span className="text-privy-gray-400 text-sm ml-4">Create link →</span>

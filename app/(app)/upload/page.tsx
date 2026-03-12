@@ -148,6 +148,9 @@ export default function UploadPage() {
             <label className="block text-sm font-medium text-privy-gray-300">
               Price (microcredits)
             </label>
+            <p className="mt-0.5 text-xs text-privy-gray-500">
+              1 credit = 1,000,000 microcredits. e.g. 1000000 = 1 credit
+            </p>
             <input
               type="text"
               className="input mt-1"

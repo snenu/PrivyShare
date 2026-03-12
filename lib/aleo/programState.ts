@@ -50,6 +50,31 @@ export async function getFileInfo(fileId: number): Promise<FileInfo | null> {
 }
 
 /**
+ * Check if access was revoked for a buyer on a file.
+ * Mapping: revoked_access access_key => boolean.
+ * Key format: { file_id: Nu64, user: address }
+ */
+export async function getRevokedAccess(
+  fileId: number,
+  buyerAddress: string
+): Promise<boolean> {
+  const key = `{ file_id: ${fileId}u64, user: ${buyerAddress} }`;
+  const url = `${BASE}/program/${PROGRAM_ID}/mapping/revoked_access/${encodeURIComponent(key)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    if (res.status === 404) return false;
+    throw new Error(`Failed to fetch revoked_access: ${res.status}`);
+  }
+  const data = await res.json();
+  const value = data?.value ?? data;
+  if (value === true || value === "true") return true;
+  if (typeof value === "object" && value !== null && "value" in value) {
+    return value.value === true || value.value === "true";
+  }
+  return false;
+}
+
+/**
  * List all registered files (file_id 1 through counter).
  * Fetches in parallel to avoid N+1 sequential requests.
  */

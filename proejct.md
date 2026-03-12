@@ -15,9 +15,10 @@ Just make teh webiset produtional ready end to edn with good ui and working mach
 
  
 
-write wsl scit with thsi priavet key soo i ca run the scipt and deploy  the sc 
+write wsl script so i can run the script and deploy the smart contract.
 
-APrivateKey1zkpBNfBdXXqjKoGq66PhJANkwbmtX5Pm19BqnwLnVMiFuJX
+**SECURITY:** Never commit private keys. Use ALEO_PRIVATE_KEY in .env or environment.
+See scripts/deploy-contract.sh for deployment.
 
 
 

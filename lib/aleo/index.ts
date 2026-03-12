@@ -3,6 +3,7 @@ export { cidToField } from "./encode";
 export {
   getFileCounter,
   getFileInfo,
+  getRevokedAccess,
   listFiles,
   type FileInfo,
 } from "./programState";

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
 
 const DotLottieReact = dynamic(
   () => import("@lottiefiles/dotlottie-react").then((m) => m.DotLottieReact),
@@ -12,7 +13,7 @@ const DotLottieReact = dynamic(
 const LOTTIE_FOOTER =
   "https://lottie.host/3a656bff-5223-47f6-8d4c-d6a5318a59d0/lqtq6Ttt95.lottie";
 
-const footerLinks = [
+const allFooterLinks = [
   { href: "/marketplace", label: "Marketplace" },
   { href: "/upload", label: "Upload" },
   { href: "/dashboard", label: "Dashboard" },
@@ -20,6 +21,10 @@ const footerLinks = [
 ];
 
 export function Footer() {
+  const { connected } = usePrivyWallet();
+  const footerLinks = connected
+    ? allFooterLinks
+    : allFooterLinks.filter((l) => l.href === "/marketplace" || l.href === "/settings");
   return (
     <footer className="relative border-t border-privy-gray-800 bg-privy-gray-900/30 overflow-hidden">
       {/* Footer Lottie as full background - blended */}

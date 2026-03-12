@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
 import { listFiles } from "@/lib/aleo/programState";
 import type { FileInfo } from "@/lib/aleo/programState";
+import { formatPrice } from "@/lib/formatPrice";
 import { FileCardSkeleton } from "@/components/Skeleton";
 
 export default function MyFilesPage() {
@@ -65,7 +66,7 @@ export default function MyFilesPage() {
                 <span className="font-mono text-xs text-privy-gray-500">#{fileId}</span>
                 <p className="mt-1 font-medium">File {fileId}</p>
                 <p className="mt-1 text-sm text-privy-gray-400">
-                  Price: {info.price} credits
+                  Price: {formatPrice(info.price)}
                 </p>
               </Link>
             </li>

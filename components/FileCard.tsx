@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface FileCardProps {
   fileId: number;
@@ -27,7 +28,7 @@ export function FileCard({ fileId, price, index = 0 }: FileCardProps) {
           <div className="min-w-0 flex-1">
             <span className="font-mono text-xs text-privy-gray-500">#{fileId}</span>
             <p className="mt-1 font-medium group-hover:text-privy-white">File {fileId}</p>
-            <p className="mt-1 text-sm text-privy-gray-400">Price: {price} credits</p>
+            <p className="mt-1 text-sm text-privy-gray-400">Price: {formatPrice(price)}</p>
           </div>
         </div>
       </Link>

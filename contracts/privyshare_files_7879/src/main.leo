@@ -1,5 +1,11 @@
 // PrivyShare file registry: ownership, listing, access on Aleo.
 // Program ID must be unique; use privyshare_files_7879.aleo.
+//
+// purchase_file: Buyer pays with credits.aleo/transfer_private; access granted atomically.
+// grant_access: Manual fallback when buyer pays off-chain.
+// verify_access: Query revoked_access mapping via RPC; key = { file_id: Nu64, user: address }.
+
+import credits.aleo;
 
 program privyshare_files_7879.aleo {
     // Counter for unique file IDs (singleton key 0u8)
@@ -112,5 +118,28 @@ program privyshare_files_7879.aleo {
         };
     }
 
-    // Revoked status is stored in mapping revoked_access; query it via program state / RPC.
+    // Purchase file with on-chain payment. Buyer pays seller via credits.aleo; access granted atomically.
+    // Caller must pass seller and price from getFileInfo; async block verifies mapping matches.
+    // Input: payment = buyer's credits record (must have microcredits >= price).
+    // Returns: buyer's change record, access_record for buyer.
+    async transition purchase_file(
+        public file_id: u64,
+        public seller: address,
+        public price: u64,
+        input payment: credits.aleo/credits,
+    ) -> (credits.aleo/credits, access_record, Future) {
+        assert_eq(payment.owner, self.caller);
+        assert(payment.microcredits >= price);
+        let (_, buyer_change) = credits.aleo/transfer_private(payment, seller, price);
+        let rec = access_record { owner: self.caller, file_id };
+        let fut = async {
+            let info = Mapping::get(files, file_id);
+            assert_eq(info.owner, seller);
+            assert_eq(info.price, price);
+        };
+        return (buyer_change, rec, fut);
+    }
+
+    // verify_access: Query revoked_access mapping via RPC; key = { file_id: Nu64, user: address }.
+    // true = revoked; false or 404 = not revoked.
 }

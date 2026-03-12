@@ -3,5 +3,11 @@
   "version": "1.0.0",
   "description": "PrivyShare file registry: ownership, listing, and access on Aleo",
   "license": "MIT",
-  "dependencies": []
+  "dependencies": [
+    {
+      "name": "credits.aleo",
+      "location": "network",
+      "network": "testnet"
+    }
+  ]
 }
