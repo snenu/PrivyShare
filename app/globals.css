@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --privy-black: #0a0a0a;
+  --privy-white: #fafafa;
+  --privy-gray-50: #f5f5f5;
+  --privy-gray-100: #e5e5e5;
+  --privy-gray-200: #d4d4d4;
+  --privy-gray-300: #a3a3a3;
+  --privy-gray-400: #737373;
+  --privy-gray-500: #525252;
+  --privy-gray-600: #404040;
+  --privy-gray-700: #262626;
+  --privy-gray-800: #171717;
+  --privy-gray-900: #0a0a0a;
+  --privy-border: #262626;
+  --privy-focus: #404040;
+}
+
+body {
+  @apply bg-privy-black text-privy-white antialiased;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-privy-white text-privy-black font-medium px-4 py-2.5 transition-colors hover:bg-privy-gray-200 focus:outline-none focus:ring-2 focus:ring-privy-gray-400 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-privy-gray-600 bg-transparent text-privy-white font-medium px-4 py-2.5 transition-colors hover:bg-privy-gray-800 hover:border-privy-gray-500 focus:outline-none focus:ring-2 focus:ring-privy-gray-500 focus:ring-offset-2 focus:ring-offset-privy-black disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .card {
+    @apply rounded-xl border border-privy-gray-800 bg-privy-gray-900/80 p-6;
+  }
+  .input {
+    @apply w-full rounded-lg border border-privy-gray-600 bg-privy-gray-900 text-privy-white placeholder-privy-gray-500 focus:border-privy-gray-400 focus:outline-none focus:ring-1 focus:ring-privy-gray-400 px-3 py-2.5;
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "program": "privyshare_files_7879.aleo",
+  "version": "1.0.0",
+  "description": "PrivyShare file registry: ownership, listing, and access on Aleo",
+  "license": "MIT",
+  "dependencies": []
+}
