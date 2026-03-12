@@ -16,7 +16,7 @@ program privyshare_files_7879.aleo {
     mapping revoked_access: access_key => boolean;
 
     struct file_info {
-        owner: address,
+        file_owner: address,
         ipfs_cid: field,
         price: u64,
     }
@@ -58,7 +58,7 @@ program privyshare_files_7879.aleo {
             assert_eq(file_id, current + 1u64);
             Mapping::set(file_counter, 0u8, file_id);
             Mapping::set(files, file_id, file_info {
-                owner: self.caller,
+                file_owner: self.caller,
                 ipfs_cid,
                 price,
             });
@@ -70,23 +70,23 @@ program privyshare_files_7879.aleo {
     async transition set_price(
         public file_id: u64,
         public new_price: u64,
-        input file_rec: file_record,
+        input: file_record,
     ) -> (file_record, Future) {
         let fut = async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.owner, file_rec.owner);
-            assert_eq(file_rec.owner, self.caller);
-            assert_eq(file_rec.file_id, file_id);
+            assert_eq(info.file_owner, input.owner);
+            assert_eq(input.owner, self.caller);
+            assert_eq(input.file_id, file_id);
             Mapping::set(files, file_id, file_info {
-                owner: info.owner,
+                file_owner: info.file_owner,
                 ipfs_cid: info.ipfs_cid,
                 price: new_price,
             });
         };
         let rec = file_record {
-            owner: file_rec.owner,
+            owner: input.owner,
             file_id,
-            ipfs_cid: file_rec.ipfs_cid,
+            ipfs_cid: input.ipfs_cid,
             price: new_price,
         };
         return (rec, fut);
@@ -100,7 +100,7 @@ program privyshare_files_7879.aleo {
     ) -> (access_record, Future) {
         let fut = async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.owner, self.caller);
+            assert_eq(info.file_owner, self.caller);
             let k = access_key { file_id, user: buyer };
             Mapping::set(revoked_access, k, false);
         };
@@ -115,7 +115,7 @@ program privyshare_files_7879.aleo {
     ) -> Future {
         return async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.owner, self.caller);
+            assert_eq(info.file_owner, self.caller);
             let k = access_key { file_id, user: buyer };
             Mapping::set(revoked_access, k, true);
         };
@@ -130,15 +130,15 @@ program privyshare_files_7879.aleo {
         public file_id: u64,
         public seller: address,
         public price: u64,
-        input payment: credits.aleo/credits,
+        input: credits.aleo/credits,
     ) -> (credits.aleo/credits, access_record, Future) {
-        assert_eq(payment.owner, self.caller);
-        assert(payment.microcredits >= price);
-        let (_, buyer_change) = credits.aleo/transfer_private(payment, seller, price);
+        assert_eq(input.owner, self.caller);
+        assert(input.microcredits >= price);
+        let (seller_rec, buyer_change) = credits.aleo/transfer_private(input, seller, price);
         let rec = access_record { owner: self.caller, file_id };
         let fut = async {
             let info = Mapping::get(files, file_id);
-            assert_eq(info.owner, seller);
+            assert_eq(info.file_owner, seller);
             assert_eq(info.price, price);
             let k = access_key { file_id, user: self.caller };
             Mapping::set(revoked_access, k, false);
