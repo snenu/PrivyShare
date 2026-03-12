@@ -136,15 +136,16 @@ program privyshare_files_7879.aleo {
         public price: u64,
         input: credits.aleo/credits,
     ) -> (credits.aleo/credits, access_record, Future) {
-        assert_eq(input.owner, self.caller);
+        let caller = self.caller;
+        assert_eq(input.owner, caller);
         assert(input.microcredits >= price);
         let (seller_rec, buyer_change) = credits.aleo/transfer_private(input, seller, price);
-        let rec = access_record { owner: self.caller, file_id };
+        let rec = access_record { owner: caller, file_id };
         let fut = async {
             let info = Mapping::get(files, file_id);
             assert_eq(info.file_owner, seller);
             assert_eq(info.price, price);
-            let k = access_key { file_id, user: self.caller };
+            let k = access_key { file_id, user: caller };
             Mapping::set(revoked_access, k, false);
         };
         return (buyer_change, rec, fut);
