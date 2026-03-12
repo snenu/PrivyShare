@@ -54,6 +54,9 @@ export default function FileDetailPage() {
   const [accessRevoked, setAccessRevoked] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [newPrice, setNewPrice] = useState("");
+  const [updatingPrice, setUpdatingPrice] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   const isOwner = connected && address && info?.owner === address;
 
@@ -67,12 +70,16 @@ export default function FileDetailPage() {
     getFileInfo(id)
       .then(async (data) => {
         setInfo(data ?? null);
-        const res = await fetch(`/api/files?fileId=${id}`);
-        if (res.ok) {
-          const dbMeta = await res.json();
-          if (dbMeta?.cid) {
-            setMeta(dbMeta);
-            return;
+        if (address && data?.owner === address) {
+          const res = await fetch(
+            `/api/files?fileId=${id}&address=${encodeURIComponent(address)}`
+          );
+          if (res.ok) {
+            const dbMeta = await res.json();
+            if (dbMeta?.cid) {
+              setMeta(dbMeta);
+              return;
+            }
           }
         }
         setMeta(local);
@@ -82,7 +89,7 @@ export default function FileDetailPage() {
         setMeta(local);
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, address]);
 
   useEffect(() => {
     if (!id || isNaN(id) || !address || isOwner) return;
@@ -203,6 +210,32 @@ export default function FileDetailPage() {
     }
   };
 
+  const handleSetPrice = async () => {
+    const priceVal = newPrice.trim();
+    if (!connected || !info || !executeTransaction || !programId || !priceVal) return;
+    const micro = parseInt(priceVal, 10);
+    if (isNaN(micro) || micro < 0) {
+      setPriceError("Enter a valid price in microcredits.");
+      return;
+    }
+    setUpdatingPrice(true);
+    setPriceError(null);
+    try {
+      // set_price(file_id, new_price, file_record) - wallet prompts for file_record
+      await executeTransaction({
+        program: programId,
+        function: "set_price",
+        inputs: [`${id}u64`, `${micro}u64`],
+      });
+      setInfo({ ...info, price: String(micro) });
+      setNewPrice("");
+    } catch (e) {
+      setPriceError(e instanceof Error ? e.message : "Failed to update price");
+    } finally {
+      setUpdatingPrice(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -236,6 +269,28 @@ export default function FileDetailPage() {
           <p className="mt-2 text-sm text-privy-gray-400">{meta.description}</p>
         )}
         <p className="mt-2 text-sm">Price: {formatPrice(info.price)}</p>
+        {isOwner && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              className="input w-32 text-sm"
+              placeholder="New price (microcredits)"
+              value={newPrice}
+              onChange={(e) => setNewPrice(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn-secondary text-sm py-2 px-3"
+              onClick={handleSetPrice}
+              disabled={updatingPrice || !newPrice.trim()}
+            >
+              {updatingPrice ? "Updating..." : "Update price"}
+            </button>
+            {priceError && (
+              <p className="text-sm text-red-400 w-full">{priceError}</p>
+            )}
+          </div>
+        )}
         <p className="mt-1 text-xs text-privy-gray-500">Owner: {info.owner.slice(0, 12)}...</p>
         {isOwner && meta?.cid && (
           <div className="mt-4 flex items-center gap-2">

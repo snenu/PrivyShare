@@ -5,7 +5,14 @@
 
 set -e
 
-PRIVATE_KEY="${PRIVATE_KEY:?PRIVATE_KEY env var required. Run: PRIVATE_KEY=xxx bash scripts/deploy-wsl.sh}"
+# Support ALEO_PRIVATE_KEY (from .env.example) or PRIVATE_KEY
+PRIVATE_KEY="${ALEO_PRIVATE_KEY:-$PRIVATE_KEY}"
+if [ -z "$PRIVATE_KEY" ]; then
+  echo "Error: ALEO_PRIVATE_KEY or PRIVATE_KEY env var required."
+  echo "Run: ALEO_PRIVATE_KEY=xxx bash scripts/deploy-wsl.sh"
+  echo "Or:  PRIVATE_KEY=xxx bash scripts/deploy-wsl.sh"
+  exit 1
+fi
 ENDPOINT="https://api.explorer.provable.com/v2"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONTRACT_DIR="$PROJECT_ROOT/contracts/privyshare_files_7879"

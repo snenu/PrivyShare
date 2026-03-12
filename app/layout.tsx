@@ -12,11 +12,14 @@ export const metadata: Metadata = {
     "Private file sharing where ownership, payments, and access remain completely confidential.",
 };
 
-// Validate environment variables at module load time in development/build
-if (process.env.NODE_ENV !== "production") {
-  const result = validateEnv();
-  if (!result.ok) {
-    console.warn("⚠️ Missing required environment variables:", result.missing.join(", "));
+// Validate environment variables at module load time
+const envResult = validateEnv();
+if (!envResult.ok) {
+  const msg = `Missing required environment variables: ${envResult.missing.join(", ")}. Set them in .env.local or deployment config.`;
+  if (process.env.NODE_ENV === "production") {
+    console.error("❌", msg);
+  } else {
+    console.warn("⚠️", msg);
   }
 }
 

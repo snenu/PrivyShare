@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 
 const steps = [
   {
@@ -56,7 +57,7 @@ export function HowItWorks() {
                 className="mb-6 h-16 w-16 rounded-2xl bg-privy-gray-800/80 flex items-center justify-center opacity-90 group-hover:opacity-100"
                 whileHover={{ rotate: 5, scale: 1.05 }}
               >
-                <img src={item.icon} alt="" className="w-8 h-8" />
+                <Image src={item.icon} alt="" width={32} height={32} />
               </motion.div>
               <h3 className="font-semibold text-xl text-privy-white">{item.title}</h3>
               <p className="mt-4 text-privy-gray-400 leading-relaxed">{item.body}</p>

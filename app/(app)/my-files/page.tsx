@@ -8,6 +8,17 @@ import type { FileInfo } from "@/lib/aleo/programState";
 import { formatPrice } from "@/lib/formatPrice";
 import { FileCardSkeleton } from "@/components/Skeleton";
 
+function loadLocalMeta(fileId: number): { name?: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(`privyshare_meta_${fileId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as { name?: string };
+  } catch {
+    return null;
+  }
+}
+
 export default function MyFilesPage() {
   const { connected, address } = usePrivyWallet();
   const [files, setFiles] = useState<{ fileId: number; info: FileInfo }[]>([]);
@@ -57,20 +68,24 @@ export default function MyFilesPage() {
       )}
       {!loading && files.length > 0 && (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {files.map(({ fileId, info }) => (
-            <li key={fileId}>
-              <Link
-                href={`/files/${fileId}`}
-                className="card block transition hover:border-privy-gray-600"
-              >
-                <span className="font-mono text-xs text-privy-gray-500">#{fileId}</span>
-                <p className="mt-1 font-medium">File {fileId}</p>
-                <p className="mt-1 text-sm text-privy-gray-400">
-                  Price: {formatPrice(info.price)}
-                </p>
-              </Link>
-            </li>
-          ))}
+          {files.map(({ fileId, info }) => {
+            const meta = loadLocalMeta(fileId);
+            const name = meta?.name ?? `File ${fileId}`;
+            return (
+              <li key={fileId}>
+                <Link
+                  href={`/files/${fileId}`}
+                  className="card block transition hover:border-privy-gray-600"
+                >
+                  <span className="font-mono text-xs text-privy-gray-500">#{fileId}</span>
+                  <p className="mt-1 font-medium">{name}</p>
+                  <p className="mt-1 text-sm text-privy-gray-400">
+                    Price: {formatPrice(info.price)}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

@@ -93,6 +93,7 @@ program privyshare_files_7879.aleo {
     }
 
     // Owner grants access to buyer (e.g. after payment). Creates AccessRecord for buyer.
+    // Clears revoked_access so a previously revoked buyer can be re-granted.
     async transition grant_access(
         public file_id: u64,
         public buyer: address,
@@ -100,6 +101,8 @@ program privyshare_files_7879.aleo {
         let fut = async {
             let info = Mapping::get(files, file_id);
             assert_eq(info.owner, self.caller);
+            let k = access_key { file_id, user: buyer };
+            Mapping::set(revoked_access, k, false);
         };
         let rec = access_record { owner: buyer, file_id };
         return (rec, fut);
@@ -120,6 +123,7 @@ program privyshare_files_7879.aleo {
 
     // Purchase file with on-chain payment. Buyer pays seller via credits.aleo; access granted atomically.
     // Caller must pass seller and price from getFileInfo; async block verifies mapping matches.
+    // Clears revoked_access so a previously revoked buyer can purchase again.
     // Input: payment = buyer's credits record (must have microcredits >= price).
     // Returns: buyer's change record, access_record for buyer.
     async transition purchase_file(
@@ -136,6 +140,8 @@ program privyshare_files_7879.aleo {
             let info = Mapping::get(files, file_id);
             assert_eq(info.owner, seller);
             assert_eq(info.price, price);
+            let k = access_key { file_id, user: self.caller };
+            Mapping::set(revoked_access, k, false);
         };
         return (buyer_change, rec, fut);
     }

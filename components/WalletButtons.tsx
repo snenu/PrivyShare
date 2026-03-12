@@ -10,6 +10,9 @@ export function WalletButtons() {
       <Link href="/marketplace" className="btn-secondary">
         Browse marketplace
       </Link>
+      <Link href="/upload" className="btn-secondary">
+        Upload file
+      </Link>
     </div>
   );
 }

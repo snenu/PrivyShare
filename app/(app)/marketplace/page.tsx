@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { FileCard } from "@/components/FileCard";
 import { FileCardSkeleton } from "@/components/Skeleton";
@@ -61,7 +62,7 @@ export default function MarketplacePage() {
           animate={{ opacity: 1 }}
           className="mt-8 flex flex-col items-center rounded-xl border border-privy-gray-800 p-12 text-center"
         >
-          <img src="/file-badge.svg" alt="" className="mb-4 h-16 w-16 opacity-30" />
+          <Image src="/file-badge.svg" alt="" width={64} height={64} className="mb-4 opacity-30" />
           <p className="text-privy-gray-400">No files listed yet.</p>
           <Link href="/upload" className="btn-primary mt-4">
             Upload one to get started
@@ -71,7 +72,13 @@ export default function MarketplacePage() {
       {!loading && !error && files.length > 0 && (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {files.map(({ fileId, info }, i) => (
-            <FileCard key={fileId} fileId={fileId} price={info.price} index={i} />
+            <FileCard
+              key={fileId}
+              fileId={fileId}
+              price={info.price}
+              owner={info.owner}
+              index={i}
+            />
           ))}
         </ul>
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { WalletMultiButton } from "@provablehq/aleo-wallet-adaptor-react-ui";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,6 +17,9 @@ export function Header() {
       ? [
           { href: "/dashboard", label: "Dashboard" },
           { href: "/upload", label: "Upload" },
+          { href: "/my-files", label: "My Files" },
+          { href: "/purchased", label: "Purchased" },
+          { href: "/settings", label: "Settings" },
         ]
       : []),
   ];
@@ -27,7 +31,7 @@ export function Header() {
           href="/"
           className="flex items-center gap-2.5 text-lg sm:text-xl font-bold tracking-tight hover:opacity-90 transition-opacity"
         >
-          <img src="/lock-badge.svg" alt="" className="h-6 sm:h-7 w-6 sm:w-7 opacity-90" />
+          <Image src="/lock-badge.svg" alt="" width={28} height={28} className="opacity-90" />
           PrivyShare
         </Link>
 

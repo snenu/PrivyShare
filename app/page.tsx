@@ -3,6 +3,7 @@ import { LandingHero } from "@/components/LandingHero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { HomeStats } from "@/components/HomeStats";
 import { HomeFeatures } from "@/components/HomeFeatures";
+import { HomeSecurity } from "@/components/HomeSecurity";
 import { HomeCta } from "@/components/HomeCta";
 import { Footer } from "@/components/Footer";
 import { RedirectOnConnect } from "@/components/RedirectOnConnect";
@@ -17,6 +18,7 @@ export default function HomePage() {
         <HowItWorks />
         <HomeStats />
         <HomeFeatures />
+        <HomeSecurity />
         <HomeCta />
         <Footer />
       </main>

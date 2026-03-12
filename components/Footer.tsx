@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
@@ -54,7 +55,7 @@ export function Footer() {
               href="/"
               className="flex items-center gap-2 text-lg font-bold text-privy-white hover:opacity-90 transition-opacity"
             >
-              <img src="/lock-badge.svg" alt="" className="h-6 w-6 opacity-90" />
+              <Image src="/lock-badge.svg" alt="" width={24} height={24} className="opacity-90" />
               PrivyShare
             </Link>
             <p className="text-sm text-privy-gray-500 max-w-xs">

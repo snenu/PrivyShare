@@ -63,18 +63,25 @@ export default function UploadPage() {
               localStorage.setItem(key, JSON.stringify(meta));
             } catch (_) {}
             if (address) {
-              fetch("/api/files", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  fileId: nextId,
-                  ownerAddress: address,
-                  cid,
-                  name: file.name,
-                  description,
-                  ivBase64,
-                  saltBase64,
-                }),
+              const postMeta = () =>
+                fetch("/api/files", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    fileId: nextId,
+                    ownerAddress: address,
+                    cid,
+                    name: file.name,
+                    description,
+                    ivBase64,
+                    saltBase64,
+                  }),
+                });
+              postMeta().then(async (res) => {
+                if (!res.ok && res.status === 403) {
+                  await new Promise((r) => setTimeout(r, 2000));
+                  postMeta();
+                }
               }).catch(() => {});
             }
             return;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePrivyWallet } from "@/lib/wallet/usePrivyWallet";
+import { getRevokedAccess } from "@/lib/aleo/programState";
 import { FileCardSkeleton } from "@/components/Skeleton";
 
 interface AccessRecord {
@@ -14,6 +15,7 @@ interface AccessRecord {
 export default function PurchasedPage() {
   const { connected, address, requestRecords } = usePrivyWallet();
   const [records, setRecords] = useState<AccessRecord[]>([]);
+  const [revokedMap, setRevokedMap] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,25 @@ export default function PurchasedPage() {
             (r as AccessRecord).owner === address
         );
         setRecords(access);
+        return access;
+      })
+      .then((access) => {
+        if (access.length > 0) {
+          return Promise.all(
+            access.map((r) =>
+              getRevokedAccess(r.file_id, address).then((revoked) => ({
+                fileId: r.file_id,
+                revoked,
+              }))
+            )
+          ).then((results) => {
+            const map: Record<number, boolean> = {};
+            results.forEach(({ fileId, revoked }) => {
+              map[fileId] = revoked;
+            });
+            setRevokedMap(map);
+          });
+        }
       })
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
@@ -53,7 +74,9 @@ export default function PurchasedPage() {
   return (
     <>
       <h1 className="text-2xl font-semibold">Purchased Files</h1>
-      <p className="mt-1 text-sm text-privy-gray-400">Files you have access to.</p>
+      <p className="mt-1 text-sm text-privy-gray-400">
+        Files you have access to. Access status is verified on-chain.
+      </p>
       {loading && (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -74,6 +97,17 @@ export default function PurchasedPage() {
               >
                 <span className="font-mono text-xs text-privy-gray-500">#{r.file_id}</span>
                 <p className="mt-1 font-medium">File {r.file_id}</p>
+                {revokedMap[r.file_id] !== undefined && (
+                  <span
+                    className={`mt-2 inline-block rounded px-2 py-0.5 text-xs ${
+                      revokedMap[r.file_id]
+                        ? "bg-amber-500/20 text-amber-400"
+                        : "bg-emerald-500/20 text-emerald-400"
+                    }`}
+                  >
+                    {revokedMap[r.file_id] ? "Access revoked" : "Access active"}
+                  </span>
+                )}
               </Link>
             </li>
           ))}
