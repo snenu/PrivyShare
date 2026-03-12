@@ -1,10 +1,10 @@
-const IPFS_GATEWAY = process.env.NEXT_PUBLIC_IPFS_GATEWAY ?? "https://ipfs.io/ipfs/";
-const IPFS_API_URL = process.env.NEXT_PUBLIC_IPFS_API_URL ?? "";
-const IPFS_API_KEY = process.env.NEXT_PUBLIC_IPFS_API_KEY ?? "";
-const IPFS_API_SECRET = process.env.NEXT_PUBLIC_IPFS_API_SECRET ?? "";
+const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://ipfs.io/ipfs/";
+const PINATA_API_KEY = process.env.NEXT_PUBLIC_PINATA_API_KEY ?? "";
+const PINATA_SECRET = process.env.NEXT_PUBLIC_PINATA_SECRET_API_KEY ?? "";
+const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT_TOKEN ?? process.env.PINATA_JWT ?? "";
 
 export function ipfsUrl(cid: string): string {
-  const base = IPFS_GATEWAY.replace(/\/$/, "");
+  const base = PINATA_GATEWAY.replace(/\/$/, "");
   const id = cid.replace(/^ipfs:\/\//, "");
   return `${base}/${id}`;
 }
@@ -13,23 +13,19 @@ export async function uploadToIpfs(
   blob: Blob,
   filename?: string
 ): Promise<{ cid: string; url: string }> {
-  if (!IPFS_API_URL || !IPFS_API_KEY) {
-    throw new Error("IPFS API not configured. Set NEXT_PUBLIC_IPFS_API_URL and NEXT_PUBLIC_IPFS_API_KEY.");
+  const hasAuth = !!PINATA_JWT || (!!PINATA_API_KEY && !!PINATA_SECRET);
+  if (!hasAuth) {
+    throw new Error("Pinata not configured. Set NEXT_PUBLIC_PINATA_JWT_TOKEN or NEXT_PUBLIC_PINATA_API_KEY + NEXT_PUBLIC_PINATA_SECRET_API_KEY.");
   }
   const form = new FormData();
   form.append("file", blob, filename ?? "file");
-  const isPinata = IPFS_API_URL.includes("pinata") || !!IPFS_API_KEY;
-  const endpoint = isPinata
-    ? "https://api.pinata.cloud/pinning/pinFileToIPFS"
-    : `${(IPFS_API_URL || "https://ipfs.infura.io:5001").replace(/\/$/, "")}/api/v0/add`;
+  const endpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
   const headers: Record<string, string> = {};
-  if (isPinata) {
-    if (IPFS_API_SECRET) {
-      headers["pinata_api_key"] = IPFS_API_KEY;
-      headers["pinata_secret_api_key"] = IPFS_API_SECRET;
-    } else {
-      headers["Authorization"] = `Bearer ${IPFS_API_KEY}`;
-    }
+  if (PINATA_JWT) {
+    headers["Authorization"] = `Bearer ${PINATA_JWT}`;
+  } else {
+    headers["pinata_api_key"] = PINATA_API_KEY;
+    headers["pinata_secret_api_key"] = PINATA_SECRET;
   }
   const res = await fetch(endpoint, { method: "POST", body: form, headers });
   if (!res.ok) {
